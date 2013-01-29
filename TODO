@@ -1,0 +1,14 @@
+Why don't we use this space to record the most pressing changes to make?
+
+Sometimes I forget what is next to do and have to sift through my email and notes.
+
+Update: Thanks! I'm working on these now... -M
+
+1) Modify Visit_Assignment so that it recognizes when a call to malloc is fed through a cast
+2) Are line numbers that show in messages before or after inclusion of "" files?
+3) Modify whole shebang to use the latest version of pycparser
+   Only obvious problem: structure of Compound node has changed; no longer a single Decl child
+
+I'm working on 3) now. I've updated the visit_compound method so mixed pointer/non-pointer detection works.
+Now I don't know whether to modify the mallocing part or attack #1)... Let's see what I can do for 1) before
+my eyelids grow too heavy.
