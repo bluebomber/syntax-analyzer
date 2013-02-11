@@ -23,10 +23,13 @@ def getAST(filename): #basename = appdir\\Tutorials\\utils
     ast = None
     ast = parse_file(filename, use_cpp=True,
             cpp_path=CPPPATH, 
-            cpp_args='-I'+fakesPath)
+            #cpp_args='-I'+fakesPath)
+            #cpp_args='-I/clue/Tutorials/utils/fake_libc_include')
+            cpp_args='-Ifake_libc_include')
     myFile = open(filename)
     numlines = len(myFile.readlines())
     myFile.close()
+    #ast.show()
     return ast, numlines
 
 def printWarnings(filename):
@@ -67,11 +70,10 @@ def getWarnings(filename):
     
     # Pass two: Visit
     # This second pass produces warning messages
-    v = smatchVisitor()
-    v.visit(ast)
+    s = smatchVisitor()
+    s.visit(ast)
     myFile.close()
-    print("\n")
-    return v.getWarnings(numlines)
+    return s.getWarnings(numlines)
 
 def className(node=None):
     if node == None:
@@ -569,29 +571,28 @@ class allocatorVisitor(c_ast.NodeVisitor):
             return self.stack[topmostIndex]
         else:
             return None
-            
+
     def generic_visit(self, node):
         """ Called if no explicit visitor function exists for a 
             node. Implements preorder visiting of the node.
         """
-        if node != None:
-
+        #print"visiting "+className(node)
+        if node is not None:
             self.nodeStack.append(node)
-            if 'children' in node.__dict__.keys():
-                for kid in node.children():
-                    self.visit(kid)
-
+            if 'children' in dir(node):
+                for (childname, child) in node.children():
+                    self.visit(child)
             self.nodeStack.pop()
 
     def visit_Assignment(self,node):
-        if node == None:
+        if node is None:
             print 'None passed as node in visit_Assignment'
             return
 
         if node.op == '=':
-            if className(node.lvalue) == 'ID' and self.dynaMem.pointsAtMemoryBlock(node.lvalue.name):
-                if className(node.rvalue) == 'ID' and  self.dynaMem.pointsAtMemoryBlock(node.rvalue.name):
-                    self.dynaMem.copyPointer(node.coord.line, node.lvalue.name, node.rvalue.name)
+            if className(node.lvalue) == 'ID' and self.dynaMem.pointsAtMemoryBlock(node.lvalue.name)\
+            and className(node.rvalue) == 'ID' and  self.dynaMem.pointsAtMemoryBlock(node.rvalue.name):
+                self.dynaMem.copyPointer(node.coord.line, node.lvalue.name, node.rvalue.name)
         else:
             print("Error processing this assignment node... What other kind of operator can an assignment have besides '='?!")
         self.generic_visit(node)
@@ -646,7 +647,7 @@ class allocatorVisitor(c_ast.NodeVisitor):
     def visit_FileAST(self, node): #Vital assumption: This node is only visited once during any execution
         """ Defines a new (highest) scope.      
         """
-        if node == None:
+        if node is None:
             print 'None passed as node in visit_FileAST'
             return
         # it will traverse as normal, but skipping the main function at first
@@ -720,7 +721,7 @@ class smatchVisitor(c_ast.NodeVisitor):
     """
         The object of this class traverses the nodes of the AST and issues warnings.
         
-        This object performs the second traversal/pass on the AST.
+        This object performs the second traversal/pass on the AST, after the allocatorVisitor.
     """
 
     def __init__(self,stack=[]):
@@ -785,16 +786,12 @@ class smatchVisitor(c_ast.NodeVisitor):
         """ Called if no explicit visitor function exists for a 
             node. Implements preorder visiting of the node.
         """
-        if node != None:
+        #print"visiting "+className(node)
+        if node is not None:
             self.nodeStack.append(node)
-            if type(node) == type((1,)):
-                print 'node is a tuple of length %s' %len(node)
-                return
-            if' children' in node.__dict__:
-                for kid in node.children():
-                   #Apparently this call is the one that "replaces itself"
-                   #  with the appropriate visit method... right?
-                   self.visit(kid)
+            # the children method now returns an iterable of (childname, childnode) pairs
+            for (childname, child) in node.children():
+                self.visit(child)
             self.nodeStack.pop()
 
     def visit_Assignment(self,node):
@@ -989,12 +986,8 @@ class smatchVisitor(c_ast.NodeVisitor):
         # it will traverse as normal, but skipping the main function at first
         self.scopeStack.enterScope(node)
         self.nodeStack.append(node)
-        for kid in node.children():
-            if not (className(kid) == "FuncDef" and kid.decl.name == "main"):
-                self.visit(kid)
-            else:
-                mainnode = kid
-        self.visit(mainnode)
+        for (childname, child) in node.children():
+            self.visit(child)
         self.nodeStack.pop()
         self.scopeStack.exitScope()
         
@@ -1129,10 +1122,10 @@ class smatchVisitor(c_ast.NodeVisitor):
             return
         if node.stmt == None or (className(node.stmt) == 'Compound' and node.stmt.block_items == None):
             self.warnings.append((node.coord.line,'Empty for block'))
-        if node.init != None and node.cond != None and node.init.__class__.__name__ == "Assignment" and node.cond.__class__.__name__ == "BinaryOp":
-            if node.init.rvalue.__class__.__name__ == "Constant" and node.init.rvalue.value == "0" and (node.cond.op == "<=" or node.cond.op == ">="):
+        if node.init != None and node.cond != None and className(node.init) == "Assignment" and className(node.cond) == "BinaryOp":
+            if className(node.init.rvalue) == "Constant" and node.init.rvalue.value == "0" and (node.cond.op == "<=" or node.cond.op == ">="):
                 self.warnings.append((node.coord.line,'Possible off-by-one error in loop'))
-            if node.init.rvalue.__class__.__name__ == "Constant" and node.init.rvalue.value == "1" and (node.cond.op == "<" or node.cond.op == ">"):
+            if className(node.init.rvalue) == "Constant" and node.init.rvalue.value == "1" and (node.cond.op == "<" or node.cond.op == ">"):
                 self.warnings.append((node.coord.line,'Possible off-by-one error in loop'))
         self.generic_visit(node)
 
@@ -1145,7 +1138,7 @@ class smatchVisitor(c_ast.NodeVisitor):
             return
         if node.stmt == None or node.stmt.block_items == None:
             self.warnings.append((node.coord.line,'Empty switch statement block'))
-        elif node.stmt.__class__.__name__ != "Compound":
+        elif className(node.stmt) != "Compound":
             self.warnings.append((node.coord.line,'Single case statement in switch'))
             return
         else:
@@ -1203,7 +1196,7 @@ class smatchVisitor(c_ast.NodeVisitor):
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         filename = sys.argv[1]
-        print 'Processing %s' %filename
+        #print 'Processing %s' %filename
         # ast,numlines = getAST(filename)
         # ast.show(showcoord=True)
         print getWarnings(filename)
