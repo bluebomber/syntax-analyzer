@@ -1,0 +1,10 @@
+"short range" tasks:
+* collect the possible warnings into a list with IDs for easy identification (IN PROGRESS)
+* organize the warning functionality into logical class structure, with appropriate methods
+* give more meaningful names to some of the classes and methods (e.g., there were two getWarnings functions, one a global function, the other a method)
+
+"medium range" tasks:
+* neaten the code, moving more functionality into classes, minimizing reuse
+
+"long range" tasks:
+* reorganize code so that there is a single visitor class, with preferably only one pass through the code (at worst, two subclasses of the visitor class)

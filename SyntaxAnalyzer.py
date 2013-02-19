@@ -18,7 +18,6 @@ emptySet = set([])
 # Portable cpp path for Windows and Linux/Unix
 CPPPATH = 'cpp'
 
-
 def getAST(filename): #basename = appdir\\Tutorials\\utils
     ast = None
     ast = parse_file(filename, use_cpp=True,
@@ -54,6 +53,7 @@ def printWarnings(filename):
     print("\n")
     v.displayWarnings(numlines)
 
+#TODO: we have two getWarnings functions: this one (global in the module), and the method of the smatchVisitor class
 def getWarnings(filename):
     ast, numlines = getAST(filename)
     myFile = open(filename)
@@ -76,7 +76,7 @@ def getWarnings(filename):
     return s.getWarnings(numlines)
 
 def className(node=None):
-    if node == None:
+    if node is None:
         return None
     else:
         return node.__class__.__name__
@@ -114,7 +114,7 @@ def getCType(node):
                 break
     return tempType
 
-#class vdecl():
+#TODO: Make this more robust. right now it's more-or-less ad-hoc.
 class cType():
     """
         Class for representing types in C.
@@ -240,6 +240,39 @@ class variableScope():
                     print str(ID)
                 print "\n"
 
+class warning():
+    """
+        This is a warning object. Each warning object will have
+        at least a numeric identifier  and a string. Warnings may
+        also take arguments, for instance, the warning may want
+        to refer to a line number.
+    """
+    def __init__(self, warning_id, error_string):
+        self.warning_id = warning_id
+        self.error_string = error_string
+        self.num_args = error_string.count("%s")
+        
+    def toString(self, args = None):
+        if args is None:
+            num_args = 0
+        else:
+            num_args = len(args)
+        if num_args != self.num_args:
+            raise Exception("warning object was expecting %s arguments, but received %s arguments."%(self.num_args, num_args))
+        if self.num_args == 0:
+            return self.error_string
+        else:
+            return self.error_string % args
+
+    def __str__(self):
+        return self.toString()
+
+    def get_id(self):
+        return self.warning_id
+
+    def print_warning(self, args):
+        print(self.toString, args)
+
 
 class warnings():
     """
@@ -248,6 +281,38 @@ class warnings():
         we encounter in the students' code. The instance keeps a
         list of (line number, warning string) pairs.
     """
+    warning_list = [
+                    warning(0,"assignment of non-initialized pointer"),
+                    warning(1,"pointer assignment causes memory leak"),
+                    warning(2,"possible use of = instead of == in condition"),
+                    warning(3,"assignment to parameter in function body"),
+                    warning(4,"possible use of & instead of && in function body"),
+                    warning(5,"possible use of | instead of || in function body"),
+                    warning(6,"sizeof applied to pointer"),
+                    warning(7,"unary op ++ or -- in conditional expression"),
+                    warning(8,"unary op ++ or -- part of a larger expression"),
+                    warning(9,"function call with a unary operation argument"),
+                    warning(10,"dereferencing pointer with untested target"),
+                    warning(11,"dereferencing pointer with NULL target"),
+                    warning(12,"accessing dynamic array with untested target"),
+                    warning(13,"pointer initialized to constant value other than NULL"),
+                    warning(14,"empty code block"),
+                    warning(15,"block allocated on line %s not tested for successful allocation within %s statements"), #note that this error requires two extra string arguments
+                    warning(16,"mixed pointer and non-pointer declaration"),
+                    warning(17,"potential memory leak: memory block allocated at line %s has not been freed"),
+                    warning(18,"function with non-VOID return type missing a return statement"),
+                    warning(19,"return value of dynamic memory allocation not stored"),
+                    warning(20,"free() called on pointer with previously freed target. target previously freed at line %s"),
+                    warning(21,"empty if block"),
+                    warning(22,"empty else block"),
+                    warning(23,"empty while block"),
+                    warning(24,"empty for block"),
+                    warning(25,"possibly off-by-one error in loop"),
+                    warning(26,"empty switch statement block"),
+                    warning(27,"single case statement in switch statement"),
+                    warning(28,"break statement in the middle of a case code block"),
+                    warning(29,"case block or default block of switch statement not terminated by a break"),
+                   ]
 
     def __init__(self, list=[]):
         self.list = list
@@ -361,7 +426,6 @@ class memoryBlock():
             self.pointers.remove(pointerID)
         else:
             print("Error! I tried to remove a pointer from a memory block, but it didn't work!")
-
 
 
 class dynamicMemory():
@@ -1192,13 +1256,12 @@ class smatchVisitor(c_ast.NodeVisitor):
                 del(self.dynaMem.pointerTarget[pointerID])
 
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         filename = sys.argv[1]
-        #print 'Processing %s' %filename
-        # ast,numlines = getAST(filename)
-        # ast.show(showcoord=True)
-        print getWarnings(filename)
+        if not os.path.isfile(filename):
+            print("error: "+filename+" cannot be read; does it exist?")
+        else:
+            print getWarnings(filename)
     else:
         print 'Arguments incorrect: should consist of the filename'
