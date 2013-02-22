@@ -5,15 +5,15 @@ from clueUtils import *
 
 import sys, math, os, sys, os
 
-tutorialdir = '/home/rtindell/clue/Tutorials' 
-basepath = tutorialdir+os.sep+'utils'
-fakesPath = '%s%sfake_libc_include' %(basepath,os.sep)
+tutorial_dir = '/home/rtindell/clue/Tutorials' 
+base_path = tutorial_dir+os.sep+'utils'
+fakes_path = '%s%sfake_libc_include' %(base_path,os.sep)
 
 #FUTURE: extend malloc to allocators
-testerOps = ['If','While','DoWhile','For']
+tester_ops = ['If','While','DoWhile','For']
 
 #Alias for an empty set
-emptySet = set([])
+empty_set = set([])
 
 # Portable cpp path for Windows and Linux/Unix
 CPPPATH = 'cpp'
@@ -22,7 +22,7 @@ def getAST(filename): #basename = appdir\\Tutorials\\utils
     ast = None
     ast = parse_file(filename, use_cpp=True,
             cpp_path=CPPPATH, 
-            #cpp_args='-I'+fakesPath)
+            #cpp_args='-I'+fakes_path)
             #cpp_args='-I/clue/Tutorials/utils/fake_libc_include')
             cpp_args='-Ifake_libc_include')
     myFile = open(filename)
@@ -243,100 +243,114 @@ class variableScope():
 class warning():
     """
         This is a warning object. Each warning object will have
-        at least a numeric identifier  and a string. Warnings may
+        at least a line number, an identifier  and a string. Warnings may
         also take arguments, for instance, the warning may want
         to refer to a line number.
     """
-    def __init__(self, warning_id, error_string):
+    warning_list = [
+                    (0,"assignment of non-initialized pointer"),
+                    (1,"pointer assignment causes memory leak"),
+                    (2,"possible use of = instead of == in condition"),
+                    (3,"assignment to parameter in function body"),
+                    (4,"possible use of & instead of && in function body"),
+                    (5,"possible use of | instead of || in function body"),
+                    (6,"sizeof applied to pointer"),
+                    (7,"unary op ++ or -- in conditional expression"),
+                    (8,"unary op ++ or -- part of a larger expression"),
+                    (9,"function call with a unary operation argument"),
+                    (10,"dereferencing pointer with untested target"),
+                    (11,"dereferencing pointer with NULL target"),
+                    (12,"accessing dynamic array with untested target"),
+                    (13,"pointer initialized to constant value other than NULL"),
+                    (14,"empty code block"),
+                    (15,"block allocated on line %s not tested for successful allocation within %s statements"), #note that this error requires two extra string arguments
+                    (16,"mixed pointer and non-pointer declaration"),
+                    (17,"potential memory leak: memory block allocated at line %s has not been freed"),
+                    (18,"function with non-VOID return type missing a return statement"),
+                    (19,"return value of dynamic memory allocation not stored"),
+                    (20,"free() called on pointer with previously freed target. target previously freed at line %s"),
+                    (21,"empty if block"),
+                    (22,"empty else block"),
+                    (23,"empty while block"),
+                    (24,"empty for block"),
+                    (25,"possibly off-by-one error in loop"),
+                    (26,"empty switch statement block"),
+                    (27,"single case statement in switch statement"),
+                    (28,"break statement in the middle of a case code block"),
+                    (29,"case block or default block of switch statement not terminated by a break"),
+                   ]
+        warning_list_ids = [w.get_id() for w in warning_list]
+
+    def __init__(self, line_number, warning_id, args = ()):
         self.warning_id = warning_id
-        self.error_string = error_string
+        self.args_passed = tuple(args)
         self.num_args = error_string.count("%s")
-        
-    def toString(self, args = None):
-        if args is None:
-            num_args = 0
-        else:
-            num_args = len(args)
-        if num_args != self.num_args:
-            raise Exception("warning object was expecting %s arguments, but received %s arguments."%(self.num_args, num_args))
-        if self.num_args == 0:
-            return self.error_string
-        else:
-            return self.error_string % args
+        self.line_number = line_number
+        if warning_id not in warning.warning_list_ids:
+            raise Exception("tried to create a warning whose ID does not exist in the list")
+        if self.num_args != len(args):
+            raise Exception("tried to create warning %s, but %s/%s arguments were passed to it."%(self.warning_id,len(args),self.num_args))
+        self.warning_message = reduce(lambda a, v: v[1] if v[0] == self.warning_id else a, warning.warning_list, "")
 
     def __str__(self):
         return self.toString()
 
-    def get_id(self):
+    def toString(self):
+        return self.warning_message % self.args_passed
+
+    def getFullMessage(self):
+        return "line "+str(self.line_number)+": "+self.toString()
+
+    def getID(self):
         return self.warning_id
 
-    def print_warning(self, args):
-        print(self.toString, args)
+    def printWarning(self, args):
+        print(self.toString)
+
+    def printFullMessage:
+        print("line "+str(self.line_number)+": "+self.toString())
 
 
-class warnings():
+class warningManager():
     """
         This encapsulates the functionality we require to record,
         manipulate, organize, and print the common runtime errors
         we encounter in the students' code. The instance keeps a
         list of (line number, warning string) pairs.
     """
-    warning_list = [
-                    warning(0,"assignment of non-initialized pointer"),
-                    warning(1,"pointer assignment causes memory leak"),
-                    warning(2,"possible use of = instead of == in condition"),
-                    warning(3,"assignment to parameter in function body"),
-                    warning(4,"possible use of & instead of && in function body"),
-                    warning(5,"possible use of | instead of || in function body"),
-                    warning(6,"sizeof applied to pointer"),
-                    warning(7,"unary op ++ or -- in conditional expression"),
-                    warning(8,"unary op ++ or -- part of a larger expression"),
-                    warning(9,"function call with a unary operation argument"),
-                    warning(10,"dereferencing pointer with untested target"),
-                    warning(11,"dereferencing pointer with NULL target"),
-                    warning(12,"accessing dynamic array with untested target"),
-                    warning(13,"pointer initialized to constant value other than NULL"),
-                    warning(14,"empty code block"),
-                    warning(15,"block allocated on line %s not tested for successful allocation within %s statements"), #note that this error requires two extra string arguments
-                    warning(16,"mixed pointer and non-pointer declaration"),
-                    warning(17,"potential memory leak: memory block allocated at line %s has not been freed"),
-                    warning(18,"function with non-VOID return type missing a return statement"),
-                    warning(19,"return value of dynamic memory allocation not stored"),
-                    warning(20,"free() called on pointer with previously freed target. target previously freed at line %s"),
-                    warning(21,"empty if block"),
-                    warning(22,"empty else block"),
-                    warning(23,"empty while block"),
-                    warning(24,"empty for block"),
-                    warning(25,"possibly off-by-one error in loop"),
-                    warning(26,"empty switch statement block"),
-                    warning(27,"single case statement in switch statement"),
-                    warning(28,"break statement in the middle of a case code block"),
-                    warning(29,"case block or default block of switch statement not terminated by a break"),
-                   ]
 
-    def __init__(self, list=[]):
-        self.list = list
+    def __init__(self):
+        self.warning_list = []
         
-    def append(self, tuple=(-1,'There\'s a bad append somewhere...')):
-        self.list.append(tuple)
-        
+    def addWarning(self, warning_id, args = None):
+        self.warning_list
+
     def sort(self, key='line'):
         if key == 'line':
             #self.list = sorted(self.list, key=lambda warning: warning[0])
-            self.list.sort(key=lambda warning: warning[0])
+            self.warning_list.sort(key=lambda warning: warning.)
         elif key == 'error':
             #self.list = sorted(self.list, key=lambda warning: warning[1])
-            self.list.sort(key=lambda warning: warning[1])
+            self.warning_list.sort(key=lambda warning: str(warning))
         else:
-            print "No way for me to sort all these many common mistakes!"
+            raise Exception("no way for me to sort all these many common mistakes!")
             
-    def display(self, numPadding = 100):
+    #def display(self, numPadding = 100):
+        #retString = ''
+        #printStr = "%" + str(int(math.log10(numPadding))+2) + "s:  %" + "s\n"
+        #self.list.sort()
+        #for i in self.list:
+            #retString += printStr % (i[0], i[1])
+        #print(retString)
+
+    def getFullWarnings(self):
+        self.sort()
         retString = ''
-        printStr = "%" + str(int(math.log10(numPadding))+2) + "s:  %" + "s\n"
-        self.list.sort()
-        for i in self.list:
-            retString += printStr % (i[0], i[1])
-        print(retString)
+        #printStr = "%" + str(int(math.log10(numPadding))+2) + "s:  %" + "s\n"
+        #self.list.sort()
+        for warning in self.warning_list:
+            retString += "\n"
+        return retString
 
     def getlist(self, numPadding = 100):
         retString = ''
@@ -389,7 +403,7 @@ class memoryBlock():
 
     def __init__(self, blockID, checkThreshold, lineAllocated, lineChecked=-1):
         self.blockID = blockID
-        self.pointers = emptySet.copy()
+        self.pointers = empty_set.copy()
         self.lineChecked = lineChecked
         self.lineFreed = -1
         self.lineAllocated = lineAllocated
@@ -453,7 +467,7 @@ class dynamicMemory():
         self.blocks = [memoryBlock(blockID=0, checkThreshold=-1, lineAllocated=-1, lineChecked=0)]
         self.pointerTarget = {}
         self.nextBlockID = 1
-        self.initializedPointers = emptySet.copy()
+        self.initializedPointers = empty_set.copy()
 
     def allocate(self, line):
         self.blocks.append(memoryBlock(self.nextBlockID, dynamicMemory.checkThreshold, line))
@@ -529,7 +543,7 @@ class dynamicMemory():
 
     # This returns true of there is an unfreed block without any pointers pointing at it
     def isMemoryLeak(self, pointerID):
-        return reduce ((lambda block, rest: (block.pointers == emptySet and not block.freed()) or rest), self.blocks)
+        return reduce ((lambda block, rest: (block.pointers == empty_set and not block.freed()) or rest), self.blocks)
 
     # True if pointerID points to some actual (non NULL) memory block
     def pointsAtMemoryBlock(self, pointerID):
@@ -597,7 +611,7 @@ class allocatorVisitor(c_ast.NodeVisitor):
 
         This is the object that makes the first traversal/pass on the AST.
     """
-    def __init__(self,stack=[]):
+    def __init__(self):
         self.nodeStack = [] # Note that the stack does NOT contain the current node, just its ancestors
         self.scopeStack = variableScope()
         self.dynaMem = dynamicMemory()
@@ -612,7 +626,7 @@ class allocatorVisitor(c_ast.NodeVisitor):
 
     def inConditional(self,node):
         for i in range(len(self.nodeStack)):
-            if className(self.nodeStack[i]) in testerOps:
+            if className(self.nodeStack[i]) in tester_ops:
                 if node == self.nodeStack[i].cond:
                     return True
         return False 
@@ -780,7 +794,6 @@ class allocatorVisitor(c_ast.NodeVisitor):
                     dynamicMemory.checkedAllocators.append(self.currentFunction)
 
 
-
 class smatchVisitor(c_ast.NodeVisitor):
     """
         The object of this class traverses the nodes of the AST and issues warnings.
@@ -788,8 +801,8 @@ class smatchVisitor(c_ast.NodeVisitor):
         This object performs the second traversal/pass on the AST, after the allocatorVisitor.
     """
 
-    def __init__(self,stack=[]):
-        self.warnings = warnings(stack) # BIZARRE - apparently if we don't pass in [], list from previous call retained!
+    def __init__(self):
+        self.warnings = warningManager() # BIZARRE - apparently if we don't pass in [], list from previous call retained!
         self.nodeStack = [] # Note that the stack does NOT contain the current node, just its ancestors
         self.scopeStack = variableScope()
         self.dynaMem = dynamicMemory()
@@ -810,7 +823,7 @@ class smatchVisitor(c_ast.NodeVisitor):
 
     def inConditional(self,node):
         for i in range(len(self.nodeStack)):
-            if className(self.nodeStack[i]) in testerOps:
+            if className(self.nodeStack[i]) in tester_ops:
                 if node == self.nodeStack[i].cond:
                     return True
         return False 
@@ -1116,7 +1129,7 @@ class smatchVisitor(c_ast.NodeVisitor):
                         self.dynaMem.pointerTarget[pointerID].free(node.coord.line)
                         # Check to see if other pointers exist...
                         #msg = 'Call to free results in dangling pointers %s' %(retvals[1])
-                        if self.dynaMem.pointerTarget[pointerID].pointers != emptySet:
+                        if self.dynaMem.pointerTarget[pointerID].pointers != empty_set:
                             msg = 'Call to free results in dangling pointers %s' %(pointerID)
                             
 

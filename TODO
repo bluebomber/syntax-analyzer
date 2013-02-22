@@ -5,6 +5,12 @@
 
 "medium range" tasks:
 * neaten the code, moving more functionality into classes, minimizing reuse
+* rename classes, variables, and functions to make consistent with PEP8 (http://www.python.org/dev/peps/pep-0008/):
+*   ClassName
+*   ExceptionNameError # exceptions are classes, too :-)
+*   method_name
+*   variable_name
+*   CONSTANT
 
 "long range" tasks:
 * reorganize code so that there is a single visitor class, with preferably only one pass through the code (at worst, two subclasses of the visitor class)
