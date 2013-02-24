@@ -27,31 +27,31 @@ def class_name(node=None):
 
 def getCType(node):
     """
-        This function returns a cType object representing the C type
+        This function returns a CType object representing the C type
         of the Decl which node represents.
     """
-    tempType = cType()
+    tempType = CType()
     if class_name(node) == 'Decl':
         tempType.name = node.name
         traverseType = node.type
         while (True):
             if class_name(traverseType) == 'PtrDecl':
-                tempType.typeList += [('*',traverseType.quals)]
+                tempType.type_list += [('*',traverseType.quals)]
                 traverseType = traverseType.type
             elif class_name(traverseType) == 'ArrayDecl':
-                tempType.typeList += [('array',[])]
+                tempType.type_list += [('array',[])]
                 traverseType = traverseType.type
             elif class_name(traverseType) == 'TypeDecl':
-                #tempType.typeList += [('type: '+traverseType.declname,traverseType.quals)]
+                #tempType.type_list += [('type: '+traverseType.declname,traverseType.quals)]
                 traverseType = traverseType.type
             elif class_name(traverseType) == 'FuncDecl':
-                tempType.typeList +=('func',[])
+                tempType.type_list +=('func',[])
                 break
             elif class_name(traverseType) == 'IdentifierType':
-                tempType.typeList += [(''.join(traverseType.names),[])]
+                tempType.type_list += [(''.join(traverseType.names),[])]
                 break
             elif class_name(traverseType) == 'Struct':
-                tempType.typeList += [('struct '+traverseType.name,[])]
+                tempType.type_list += [('struct '+traverseType.name,[])]
                 break
             else:
                 print("Error extracting C type from node "+class_name(traverseType)+"! Quitting.")
@@ -59,14 +59,14 @@ def getCType(node):
     return tempType
 
 #TODO: Make this more robust. right now it's more-or-less ad-hoc.
-class cType():
+class CType():
     """
         Class for representing types in C.
         The internal type is:
           string * (string * string list) list
         Objects of this class have two members:
         name: The variable name of the object, or None.
-        typeList: A list of tuples. The entire list represents
+        type_list: A list of tuples. The entire list represents
                   the C type of a variable, including at each
                   stage the type modifiers.
         
@@ -80,40 +80,40 @@ class cType():
         Would be represented internally by:
 
           name = 'mypointer'
-          typeList = [('int',['const']),('*',[])]
+          type_list = [('int',['const']),('*',[])]
     """
     def __init__(self, type=None, name=None):
         self.name = name
-        self.typeList = [type] if type != None else []
+        self.type_list = [type] if type != None else []
         
-    def isPointer(self):
-        return self.typeList[0][0] == '*'
+    def is_pointer(self):
+        return self.type_list[0][0] == '*'
             
-    def isType(self, type):
-        return self.typeList[0][0] == type
+    def is_type(self, type):
+        return self.type_list[0][0] == type
             
-    def isConst(self):
-        return 'const' in reduce ((lambda x,y: x+y), [t[1] for t in self.typeList])
+    def is_const(self):
+        return 'const' in reduce ((lambda x,y: x+y), [t[1] for t in self.type_list])
 
-    def isExtern(self):
-        return 'extern' in reduce ((lambda x,y: x+y), [t[1] for t in self.typeList])
+    def is_extern(self):
+        return 'extern' in reduce ((lambda x,y: x+y), [t[1] for t in self.type_list])
             
-    def makeParameter(self):
-        self.typeList[0][1].append('param')
+    def make_parameter(self):
+        self.type_list[0][1].append('param')
         
-    def isParameter(self):
-        return 'param' in reduce ((lambda x,y: x+y), [t[1] for t in self.typeList])
+    def is_parameter(self):
+        return 'param' in reduce ((lambda x,y: x+y), [t[1] for t in self.type_list])
 
-    def getName(self):
+    def get_name(self):
         return self.name
 
     def display(self):
         printString = self.name + " : "
-        for typePart in self.typeList:
+        for typePart in self.type_list:
             printString += "("+", ".join(typePart[1])+typePart[0]+")"
         print(printString)
             
-def getPointerID(node):
+def get_pointer_id(node):
     """
         This function returns the ID (qualified variable name) of a variable. This is
         intended and currently used for assignment of a return value of an allocator
@@ -124,11 +124,11 @@ def getPointerID(node):
         Would return '*head'
     """
     if class_name(node) == "UnaryOp":
-        return node.op + getPointerID(node.expr)
+        return node.op + get_pointer_id(node.expr)
     elif class_name(node) == "ID":
         return node.name
     elif class_name(node) == "StructRef":
-        return getPointerID(node.name) + node.type + getPointerID(node.field)
+        return get_pointer_id(node.name) + node.type + get_pointer_id(node.field)
     else:
         return "UNKNOWN-ID"
                 
@@ -151,19 +151,19 @@ class VariableScope():
         self.scope = [{}]
         self.scopeNode = [None]
 
-    def enterScope(self, node):
+    def enter_scope(self, node):
         self.scope.append(dict(self.scope[-1]))
         self.scopeNode.append(node)
 
-    def exitScope(self):
+    def exit_scope(self):
         self.scope.pop()
         self.scopeNode.pop()
         
-    def declare(self, variableID, cType):
-        self.scope[-1][variableID] = cType
+    def declare(self, variableID, CType):
+        self.scope[-1][variableID] = CType
 
-    #def ctype(self, ID):
-    def getVariableType(self, variableID):
+    #def CType(self, ID):
+    def get_variable_type(self, variableID):
         if variableID in self.scope[-1]:
             return (self.scope[-1])[variableID]
         else:
@@ -282,20 +282,18 @@ class WarningManager():
         else:
             raise Exception("%s is an undefined sorting key for warnings."%key)
             
-    #def display(self, numPadding = 100):
-        #retString = ''
-        #printStr = "%" + str(int(math.log10(numPadding))+2) + "s:  %" + "s\n"
-        #self.list.sort()
-        #for i in self.list:
-            #retString += printStr % (i[0], i[1])
-        #print(retString)
-
-    def get_full_warnings(self):
+    def get_warning_messages(self):
         self.sort()
         ret_string = ""
         for warning in self.warning_list:
             ret_string += warning.get_full_message()+"\n"
         return ret_string
+
+    def get_all_warnings(self, as_pairs = False):
+        if as_pairs:
+            return [(w.get_line_number(), str(w)) for w in self.warning_list]
+        else:
+            return self.warning_list
 
 class MemoryBlock():
     """ MemoryBlock objects each represent a dynamically allocated block of memory,
@@ -310,7 +308,7 @@ class MemoryBlock():
         timer:
             the number of statements left to process after this block's
             allocation before an unchecked allocation warning is issued.
-            This is initialized to DynamicMemory.checkthreshold.
+            This is initialized to DynamicMemory.check_threshold.
 
         lineChecked:
             The line number where a pointer to this block was compared
@@ -324,10 +322,10 @@ class MemoryBlock():
             The line number where a free occurred. This will be negative if the block
             has not been freed yet.
 
-        removePointer:
+        remove_pointer:
             Removes a pointer from the set of pointers pointing at this block
 
-        danglingPointers:
+        dangling_pointers:
             A list of pointers to this block. This returns None of the block has not yet
             been freed, otherwise it returns the list of pointers still pointing to it.
             
@@ -337,13 +335,13 @@ class MemoryBlock():
               in order to prevent warnings.
     """ 
 
-    def __init__(self, blockID, checkThreshold, lineAllocated, lineChecked=-1):
+    def __init__(self, blockID, check_threshold, lineAllocated, lineChecked=-1):
         self.blockID = blockID
         self.pointers = empty_set.copy()
         self.lineChecked = lineChecked
         self.lineFreed = -1
         self.lineAllocated = lineAllocated
-        self.timer = checkThreshold
+        self.timer = check_threshold
 
     # Has the allocation been checked?
     def checked(self):
@@ -367,11 +365,11 @@ class MemoryBlock():
     def decrement(self):
         self.timer -= 1
 
-    def addPointer(self, pointerID):
+    def add_pointer(self, pointerID):
         # FYI: add() is a method defined for sets
         self.pointers.add(pointerID)
 
-    def removePointer(self, pointerID):
+    def remove_pointer(self, pointerID):
         if pointerID in self.pointers:
             self.pointers.remove(pointerID)
         else:
@@ -382,30 +380,30 @@ class DynamicMemory():
         An instance of this class will be a list of MemoryBlock objects, a dictionary
         for looking up a block ID based on pointer ID, together with access methods.
 
-        NOTE: This class has class variables uncheckedAllocators and checkedAllocators, both lists
+        NOTE: This class has class variables unchecked_allocators and checked_allocators, both lists
         of functionIDs, and the first pass on the code, executed by AllocatorVisitor, updates these
-        lists appropriately. This class also contains the class variable checkThreshold, a whole
+        lists appropriately. This class also contains the class variable check_threshold, a whole
         number representing how many lines may pass after an unchecked allocation occurs before
         the program must check the allocation.
     """
 
-    uncheckedAllocators = ['malloc','calloc','strdup']
-    checkedAllocators = []
+    unchecked_allocators = ['malloc','calloc','strdup']
+    checked_allocators = []
 
     #This is the number of statements (at the same scope level) after
     # an allocation occurs before a warning is issued. Set equal to 1
     # to require code to check malloc occur immediately at the next
     # statement.
-    checkThreshold = 1
+    check_threshold = 1
 
     def __init__(self):
-        self.blocks = [MemoryBlock(blockID=0, checkThreshold=-1, lineAllocated=-1, lineChecked=0)]
+        self.blocks = [MemoryBlock(blockID=0, check_threshold=-1, lineAllocated=-1, lineChecked=0)]
         self.pointerTarget = {}
         self.nextBlockID = 1
         self.initializedPointers = empty_set.copy()
 
     def allocate(self, line):
-        self.blocks.append(MemoryBlock(self.nextBlockID, DynamicMemory.checkThreshold, line))
+        self.blocks.append(MemoryBlock(self.nextBlockID, DynamicMemory.check_threshold, line))
         self.nextBlockID += 1
 
     # Check a block of memory either by blockid or pointer name
@@ -417,7 +415,7 @@ class DynamicMemory():
             #print("Checking off on line "+str(line)+": "+pointerID)
             # For each block in list of all dynamically allocated memory blocks...
             # Mark the block as checked if the provided pointer is pointing to this block.
-            if self.pointsAtMemoryBlock(pointerID):
+            if self.points_at_memory_block(pointerID):
                 self.pointerTarget[pointerID].lineChecked = line
                 self.pointerTarget[pointerID].timer = -1
         else:
@@ -431,7 +429,7 @@ class DynamicMemory():
             return None
         if pointerID != None:
             # For each block in list of all dynamically allocated memory blocks...
-            if self.pointsAtMemoryBlock(pointerID):
+            if self.points_at_memory_block(pointerID):
                 self.pointerTarget[pointerID].lineFreed = line
         else:
             self.blocks[blockID].lineFreed = line
@@ -443,49 +441,49 @@ class DynamicMemory():
         return pointerID in self.initializedPointers
 
     # Important note: This is for assigning pointer IDs to block IDs, *not* for
-    #   copying pointer to pointer! That must be done via the copyPointer method.
-    def linkPointerToBlock(self, pointerID, blockID):
-        self.blocks[blockID].addPointer(pointerID)
+    #   copying pointer to pointer! That must be done via the copy_pointer method.
+    def link_pointer_to_block(self, pointerID, blockID):
+        self.blocks[blockID].add_pointer(pointerID)
         self.pointerTarget[pointerID] = self.blocks[blockID]
 
     def nullify(self, pointerID):
-        self.linkPointerToBlock(pointerID, 0)
+        self.link_pointer_to_block(pointerID, 0)
 
     # This is for the c-like statement
     #  void * a, * b;
     #  a = b;
     # That is, this only updates pointerIDA.
     # Underneath the hood, like nullify(), this is an alias for
-    # calls to linkPointerToBlock().
-    def copyPointer(self, line, pointerIDA, pointerIDB):
-        self.erasePointer(pointerIDA)
-        if self.pointsAtMemoryBlock(pointerIDB):
-            self.linkPointerToBlock(pointerIDA, self.pointerTarget[pointerIDB])
+    # calls to link_pointer_to_block().
+    def copy_pointer(self, line, pointerIDA, pointerIDB):
+        self.erase_pointer(pointerIDA)
+        if self.points_at_memory_block(pointerIDB):
+            self.link_pointer_to_block(pointerIDA, self.pointerTarget[pointerIDB])
 
     # This function removes a pointer from the structure, erasing the fact it ever existed
-    def erasePointer(self, pointerID):
-        if self.pointsAtMemoryBlock(pointerID):
+    def erase_pointer(self, pointerID):
+        if self.points_at_memory_block(pointerID):
             self.pointerTarget[pointerID].pointers.remove(pointerID)
             del self.pointerTarget[pointerID]
 
     # This is simply for allocation and assignment in a single call
-    # Logically equivalent to linkPointerToBlock(pointerID, allocate())
-    def initializePointer(self, line, pointerID, checked=False):
+    # Logically equivalent to link_pointer_to_block(pointerID, allocate())
+    def initialize_pointer(self, line, pointerID, checked=False):
         self.allocate(line)
-        self.linkPointerToBlock(pointerID,self.nextBlockID-1)
+        self.link_pointer_to_block(pointerID,self.nextBlockID-1)
         if checked:
             self.check(line, blockID = self.nextBlockID-1)
 
     # This returns true of there is an unfreed block without any pointers pointing at it
-    def isMemoryLeak(self, pointerID):
+    def is_memory_leak(self, pointerID):
         return reduce ((lambda block, rest: (block.pointers == empty_set and not block.freed()) or rest), self.blocks)
 
     # True if pointerID points to some actual (non NULL) memory block
-    def pointsAtMemoryBlock(self, pointerID):
+    def points_at_memory_block(self, pointerID):
         return pointerID in self.pointerTarget and not self.pointerTarget[pointerID] == 0
 
     # This constructs and returns a list of pointers IDs of dangling pointers
-    def danglingPointers(self):
+    def dangling_pointers(self):
         blockList = [block for block in self.blocks if block.freed()]
         returnList = []
         for block in blockList:
@@ -493,7 +491,7 @@ class DynamicMemory():
         return returnList
 
     # This returns a list of pointers pointing to NULL (the 0 block)
-    def nullPointers(self):
+    def null_pointers(self):
         return self.blocks[0].pointers
 
     def tick(self, line):
@@ -504,10 +502,10 @@ class DynamicMemory():
             elif block.timer > 0:
                 block.decrement()
 
-    def unfreedBlocks(self):
+    def unfreed_blocks(self):
         return [block for block in self.blocks[1:] if not block.freed()]
 
-    def expiredBlocks(self):
+    def expired_blocks(self):
         return [block for block in self.blocks[1:] if block.timer == 0]
 
     def purge(self):
@@ -559,6 +557,7 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         else:
             return 'None'
 
+    # TODO: This needs to change (incorrect implementation)
     def in_conditional(self,node):
         for i in range(len(self.nodeStack)):
             if class_name(self.nodeStack[i]) in tester_ops:
@@ -603,9 +602,9 @@ class AllocatorVisitor(c_ast.NodeVisitor):
             return
 
         if node.op == '=':
-            if class_name(node.lvalue) == 'ID' and self.dynaMem.pointsAtMemoryBlock(node.lvalue.name)\
-            and class_name(node.rvalue) == 'ID' and  self.dynaMem.pointsAtMemoryBlock(node.rvalue.name):
-                self.dynaMem.copyPointer(node.coord.line, node.lvalue.name, node.rvalue.name)
+            if class_name(node.lvalue) == 'ID' and self.dynaMem.points_at_memory_block(node.lvalue.name)\
+            and class_name(node.rvalue) == 'ID' and  self.dynaMem.points_at_memory_block(node.rvalue.name):
+                self.dynaMem.copy_pointer(node.coord.line, node.lvalue.name, node.rvalue.name)
         else:
             print("Error processing this assignment node... What other kind of operator can an assignment have besides '='?!")
         self.generic_visit(node)
@@ -618,15 +617,15 @@ class AllocatorVisitor(c_ast.NodeVisitor):
                 node.right.value == '0'):
                 # If the left operand is a pointer pointing to an allocated block of memory, mark that pointer/block as tested
                 #MN: ( p == NULL ) or ( p == 0 )
-                #print(str(self.dynaMem.pointsAtMemoryBlock(node.left.name)))
-                if class_name(node.left) == "ID" and self.dynaMem.pointsAtMemoryBlock(node.left.name):
+                #print(str(self.dynaMem.points_at_memory_block(node.left.name)))
+                if class_name(node.left) == "ID" and self.dynaMem.points_at_memory_block(node.left.name):
                     self.dynaMem.check(node.coord.line, node.left.name)
                 # The following catches some forms of immediate comparison after an allocation
                 # ((p=malloc(...)) == NULL) or ((p=malloc(...)) == 0 )
                 elif class_name(node.left) == "Assignment" and\
                      class_name(node.left.lvalue) == "ID" and\
                      class_name(node.left.rvalue) == "FuncCall" and\
-                     node.left.rvalue.name.name in DynamicMemory.uncheckedAllocators:
+                     node.left.rvalue.name.name in DynamicMemory.unchecked_allocators:
                     self.dynaMem.check(node.coord.line, node.left.lvalue.name)
             # If comparing against any of the many flavors of NULL, this time NULL on the left...
             elif (class_name(node.left) == "ID" and\
@@ -634,11 +633,11 @@ class AllocatorVisitor(c_ast.NodeVisitor):
                  (class_name(node.left) == "Constant" and\
                     node.left.value == '0'):                                
                 if class_name(node.right) == "ID" and\
-                   self.dynaMem.pointsAtMemoryBlock(node.right.name):
+                   self.dynaMem.points_at_memory_block(node.right.name):
                     self.dynaMem.check(node.coord.line, node.right.name)                 #MN: ( NULL/0 == p )
-            else: # ADDED BY RT 7/25/2010
+            else: 
                 if  class_name(node.right) == "ID" and\
-                    self.dynaMem.pointsAtMemoryBlock(node.right.name):       #MN: ( ...something... == p )
+                    self.dynaMem.points_at_memory_block(node.right.name):       #MN: ( ...something... == p )
                     self.dynaMem.check(node.coord.line, node.right.name)
                 elif class_name(node.right) == "Assignment" and\
                      class_name(node.right.lvalue) == "ID" and\
@@ -651,10 +650,10 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         if node == None:
             print 'None passed as node in visit_Compound'
             return
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         self.nodeStack.append(node)
         self.generic_visit(node)
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
         self.nodeStack.pop()
 
     def visit_FileAST(self, node): #Vital assumption: This node is only visited once during any execution
@@ -664,31 +663,31 @@ class AllocatorVisitor(c_ast.NodeVisitor):
             print 'None passed as node in visit_FileAST'
             return
         # it will traverse as normal, but skipping the main function at first
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         self.nodeStack.append(node)
         self.generic_visit(node)
         self.nodeStack.pop()
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
         
     def visit_FuncDef(self, node):
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         oldfunction = self.currentFunction
         self.currentFunction = node.decl.name
         self.generic_visit(node)
         self.dynaMem.__init__()
         self.currentFunction = oldfunction
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
 
     def visit_FuncCall(self, node):
         if class_name(node.name) == "ID":
-            if node.name.name in DynamicMemory.uncheckedAllocators:
+            if node.name.name in DynamicMemory.unchecked_allocators:
                 if self.parent_name() == "Assignment":
-                    self.dynaMem.initializePointer(node.coord.line, getPointerID(self.nodeStack[-1].lvalue), False)
+                    self.dynaMem.initialize_pointer(node.coord.line, get_pointer_id(self.nodeStack[-1].lvalue), False)
                 elif self.parent_name() == "Decl":
-                    self.dynaMem.initializePointer(node.coord.line, self.nodeStack[-1].name)
-            elif node.name.name in DynamicMemory.checkedAllocators:
+                    self.dynaMem.initialize_pointer(node.coord.line, self.nodeStack[-1].name)
+            elif node.name.name in DynamicMemory.checked_allocators:
                 if self.parent_name() == "Assignment":
-                    self.dynaMem.initializePointer(node.coord.line, getPointerID(self.nodeStack[-1].lvalue), True)
+                    self.dynaMem.initialize_pointer(node.coord.line, get_pointer_id(self.nodeStack[-1].lvalue), True)
             elif node.name.name == "free":
                 ptrName = node.args.exprs[0].name
         self.generic_visit(node)
@@ -703,17 +702,17 @@ class AllocatorVisitor(c_ast.NodeVisitor):
 
         if node.cond != None:
             if class_name(node.cond) == "Assignment"\
-            and class_name(node.cond.rvalue) == "FuncCall" and node.cond.rvalue.name.name in DynamicMemory.uncheckedAllocators:
-                self.dynaMem.check(node.coord.line, node.cond.lvalue.name)                                           # if(p=malloc(5)){return 42;}
+            and class_name(node.cond.rvalue) == "FuncCall" and node.cond.rvalue.name.name in DynamicMemory.unchecked_allocators:
+                self.dynaMem.check(node.coord.line, node.cond.lvalue.name)     # if(p=malloc(5)){return 42;}
             elif class_name(node.cond) == "UnaryOp" and node.cond.op == "!"\
             and class_name(node.cond.expr) == "Assignment"\
-            and class_name(node.cond.expr.rvalue) == "FuncCall" and node.cond.expr.rvalue.name.name in DynamicMemory.uncheckedAllocators:
-                self.dynaMem.check(node.coord.line, node.cond.lvalue.name)                                           # if(p=malloc(5)){return 42;}
+            and class_name(node.cond.expr.rvalue) == "FuncCall" and node.cond.expr.rvalue.name.name in DynamicMemory.unchecked_allocators:
+                self.dynaMem.check(node.coord.line, node.cond.lvalue.name)     # if(p=malloc(5)){return 42;}
             elif class_name(node.cond) == "ID":
                 self.dynaMem.check(node.coord.line, node.cond.name)   #if(p) printf("foo")
             elif class_name(node.cond) == "UnaryOp" and node.cond.op == "!"\
             and class_name(node.cond.expr) == "ID":
-                self.dynaMem.check(node.coord.line, node.cond.name)                                             # if(!p) printf("76")
+                self.dynaMem.check(node.coord.line, node.cond.name)   # if(!p) printf("76")
         self.generic_visit(node)
 
     def visit_Return(self, node):
@@ -722,11 +721,11 @@ class AllocatorVisitor(c_ast.NodeVisitor):
             the allocators[] list!
         """
         if class_name(node.expr) == "ID":
-            if self.dynaMem.pointsAtMemoryBlock(node.expr.name):
+            if self.dynaMem.points_at_memory_block(node.expr.name):
                 if not self.dynaMem.pointerTarget[node.expr.name].checked():
-                    DynamicMemory.uncheckedAllocators.append(self.currentFunction)
+                    DynamicMemory.unchecked_allocators.append(self.currentFunction)
                 else:
-                    DynamicMemory.checkedAllocators.append(self.currentFunction)
+                    DynamicMemory.checked_allocators.append(self.currentFunction)
 
 
 class SmatchVisitor(c_ast.NodeVisitor):
@@ -782,17 +781,20 @@ class SmatchVisitor(c_ast.NodeVisitor):
         else:
             return None
             
-    def display_warnings(self):
+    def display_all_warnings(self):
         """ This method simply calls the warnings
             class's display method.        
         """
-        print(self.warnings.get_full_warnings())
+        print(self.warnings.get_warning_messages())
 
-    def get_warnings(self):
+    def get_all_warnings(self):
         """ This method simply calls the warnings
             class's getlist method.        
         """
-        return self.warnings.get_full_warnings()
+        return self.warnings.get_all_warnings()
+
+    def get_all_warnings_as_pairs(self):
+        return self.warnings.get_all_warnings(as_pairs = True)
 
     def generic_visit(self, node):
         """ Called if no explicit visitor function exists for a 
@@ -811,22 +813,22 @@ class SmatchVisitor(c_ast.NodeVisitor):
             an assignment node in the tree.        
         """
         if class_name(node.rvalue) == 'ID':
-            if self.scopeStack.getVariableType(node.rvalue.name).isPointer():
+            if self.scopeStack.get_variable_type(node.rvalue.name).is_pointer():
                 if not self.dynaMem.initialized(node.rvalue.name):
                     self.warnings.add_warning(node.coord.line, 0)
                 else:
                     # If the lvalue is also a pointerID, it is now initialized
                     if class_name(nod.lvalue) == 'ID':
                         self.dynaMem.initialize(node.lvalue.name)
-                if self.dynaMem.pointsAtMemoryBlock(node.lvalue.name):
+                if self.dynaMem.points_at_memory_block(node.lvalue.name):
                     # warn about memory leak
                     if len(self.dynaMem.pointerTarget[node.lvalue.name].pointers) == 1:
                         self.warnings.add_warning(node.coord.line, 1)
-                    self.dynaMem.copyPointer(node.coord.line, node.lvalue.name, node.rvalue.name)
+                    self.dynaMem.copy_pointer(node.coord.line, node.lvalue.name, node.rvalue.name)
         if self.in_conditional(node) and class_name(node.rvalue) != "FuncCall":
-            self.warnings.add_warning(node.coord.line, 2)
+            self.warnings.add_warning(node.coord.line,2)
         if class_name(node.lvalue) == 'ID':
-            if self.scopeStack.getVariableType(node.lvalue.name).isParameter():
+            if self.scopeStack.get_variable_type(node.lvalue.name).is_parameter():
                 self.warnings.add_warning(node.coord.line,3)
         self.generic_visit(node)
                 
@@ -857,14 +859,14 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 node.right.value == '0'):
                 # If the left operand is a pointer pointing to an allocated block of memory, mark that pointer/block as tested
                 #MN: ( p == NULL ) or ( p == 0 )
-                if class_name(node.left) == "ID" and self.dynaMem.pointsAtMemoryBlock(node.left.name):
+                if class_name(node.left) == "ID" and self.dynaMem.points_at_memory_block(node.left.name):
                     self.dynaMem.check(node.coord.line, node.left.name)
                 # The following catches some forms of immediate comparison after an allocation
                 # ((p=malloc(...)) == NULL) or ((p=malloc(...)) == 0 )
                 elif class_name(node.left) == "Assignment" and\
                      class_name(node.left.lvalue) == "ID" and\
                      class_name(node.left.rvalue) == "FuncCall" and\
-                     node.left.rvalue.name.name in DynamicMemory.uncheckedAllocators:
+                     node.left.rvalue.name.name in DynamicMemory.unchecked_allocators:
                     self.dynaMem.check(node.coord.line, node.left.lvalue.name)
             # If comparing against any of the many flavors of NULL, this time NULL on the left...
             elif (class_name(node.left) == "ID" and\
@@ -872,16 +874,16 @@ class SmatchVisitor(c_ast.NodeVisitor):
                  (class_name(node.left) == "Constant" and\
                     node.left.value == '0'):                                
                 if class_name(node.right) == "ID" and\
-                   self.dynaMem.pointsAtMemoryBlock(node.right.name):
+                   self.dynaMem.points_at_memory_block(node.right.name):
                     self.dynaMem.check(node.coord.line, node.right.name)                 #MN: ( NULL/0 == p )
             else: # ADDED BY RT 7/25/2010
                 if  class_name(node.right) == "ID" and\
-                    self.dynaMem.pointsAtMemoryBlock(node.right.name):       #MN: ( ...something... == p )
+                    self.dynaMem.points_at_memory_block(node.right.name):       #MN: ( ...something... == p )
                     self.dynaMem.check(node.coord.line, node.right.name)
                 elif class_name(node.right) == "Assignment" and\
                      class_name(node.right.lvalue) == "ID" and\
                      class_name(node.right.rvalue) == "FuncCall" and\
-                     node.right.rvalue.name.name in DynamicMemory.uncheckedAllocators:            #MN: ( ...something... == (p=malloc(...)) )
+                     node.right.rvalue.name.name in DynamicMemory.unchecked_allocators:            #MN: ( ...something... == (p=malloc(...)) )
                     self.dynaMem.check(node.coord.line, node.right.lvalue.name)
 
     def visit_UnaryOp(self,node):
@@ -896,7 +898,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             t = node.expr
             while class_name(t) not in ['ID', 'Typename']:
                 t = t.expr
-            if class_name(t) == 'ID' and self.scopeStack.getVariableType(t.name).isPointer():
+            if class_name(t) == 'ID' and self.scopeStack.get_variable_type(t.name).is_pointer():
                 self.warnings.add_warning(node.coord.line,6)
         elif node.op in ["++","--","p++","p--"]:
             if self.parent_name() != 'Assignment':
@@ -910,7 +912,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             p = node.expr.name
             if p in self.dynaMem.pointerTarget and not self.dynaMem.pointerTarget[p].checked():
                 self.warnings.add_warning(node.coord.line,10)
-            if p in self.dynaMem.nullPointers():
+            if p in self.dynaMem.null_pointers():
                 self.warnings.add_warning(node.coord.line,11)
         self.generic_visit(node)
 
@@ -940,14 +942,14 @@ class SmatchVisitor(c_ast.NodeVisitor):
         else:
             self.scopeStack.declare(node.name,getCType(node))
             if self.parent_name() != "ParamList" and not self.descendant_of('Typedef'):
-                if self.scopeStack.getVariableType(node.name).isPointer():
-                    if not self.scopeStack.getVariableType(node.name).isConst() and node.init != None and class_name(node.init) == "Constant":
+                if self.scopeStack.get_variable_type(node.name).is_pointer():
+                    if not self.scopeStack.get_variable_type(node.name).is_const() and node.init != None and class_name(node.init) == "Constant":
                         if node.init.value not in ['NULL','0']:
                             self.warnings.add_warning(node.init.coord.line,13)
                         else: 
                             self.dynaMem.nullify(node.name)
             else:
-                self.scopeStack.getVariableType(node.name).makeParameter()
+                self.scopeStack.get_variable_type(node.name).make_parameter()
         self.generic_visit(node)
 
     def visit_Compound(self,node):
@@ -957,7 +959,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             
             Defines a new scope.
         """
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         self.nodeStack.append(node)
         if node.block_items == []:
             self.warnings.add_warning(node.coord.line,14)
@@ -973,14 +975,14 @@ class SmatchVisitor(c_ast.NodeVisitor):
             for currentItem in node.block_items:
                 self.visit(currentItem)
                 self.dynaMem.tick(currentItem.coord.line)
-                for block in self.dynaMem.expiredBlocks():
-                    self.warnings.add_warning(block.lineAllocated,15,(block.lineAllocated, DynamicMemory.checkThreshold))
+                for block in self.dynaMem.expired_blocks():
+                    self.warnings.add_warning(block.lineAllocated,15,(block.lineAllocated, DynamicMemory.check_threshold))
                 if class_name(currentItem) in ["Decl"]:
                     for previousDecl in previousDecls:
                         if currentItem.coord.line == previousDecl.coord.line and\
-                        (self.scopeStack.getVariableType(currentItem.name).isPointer() !=
-                        self.scopeStack.getVariableType(previousDecl.name).isPointer()):
-                            lineNum.append((currentItem.coord.line,self.scopeStack.getVariableType(currentItem.name).base))
+                        (self.scopeStack.get_variable_type(currentItem.name).is_pointer() !=
+                        self.scopeStack.get_variable_type(previousDecl.name).is_pointer()):
+                            lineNum.append((currentItem.coord.line,self.scopeStack.get_variable_type(currentItem.name).base))
                     previousDecls.append(currentItem)
 
             # Iterate through the distinct line numbers and report the warnings
@@ -988,7 +990,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             for (i,j) in set(lineNum):
                 self.warnings.add_warning(i,16)
         #self.dynaMem.display("Exiting compound node.")
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
         self.nodeStack.pop()
 
     def visit_FileAST(self, node): #Vital assumption: This node is only visited once during any execution
@@ -998,12 +1000,12 @@ class SmatchVisitor(c_ast.NodeVisitor):
             print 'None passed as node in visit_FileAST'
             return
         # it will traverse as normal, but skipping the main function at first
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         self.nodeStack.append(node)
         for (childname, child) in node.children():
             self.visit(child)
         self.nodeStack.pop()
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
         
     def visit_FuncDef(self, node):
         """ Defines a new scope
@@ -1011,14 +1013,14 @@ class SmatchVisitor(c_ast.NodeVisitor):
         if node == None:
             print 'None passed as node in visit_FuncDef'
             return
-        self.scopeStack.enterScope(node)
+        self.scopeStack.enter_scope(node)
         oldfunction = self.currentFunction
         self.currentFunction = node.decl.name
         self.returnEncountered = False
         self.generic_visit(node)
-        #self.dynaMem.warnUnfreedBlocks(node.coord.line)
+        #self.dynaMem.warnunfreed_blocks(node.coord.line)
         #This is where we should warn about unfreed blocks
-        for block in self.dynaMem.unfreedBlocks():
+        for block in self.dynaMem.unfreed_blocks():
             self.warnings.add_warning(block.lineAllocated, 17, (block.lineAllocated,))
         if not self.returnEncountered and not (class_name(node.decl.type.type) == 'TypeDecl'
                                         and class_name(node.decl.type.type.type) == 'IdentifierType'
@@ -1026,7 +1028,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             self.warnings.add_warning(node.coord.line,18)
         self.dynaMem.purge()
         self.currentFunction = oldfunction
-        self.scopeStack.exitScope()
+        self.scopeStack.exit_scope()
 
     def visit_FuncDecl(self, node):
         """ This is called upon visiting a function declaration.
@@ -1041,18 +1043,18 @@ class SmatchVisitor(c_ast.NodeVisitor):
             return
 
         if class_name(node.name) == "ID":
-            if node.name.name in DynamicMemory.uncheckedAllocators:
+            if node.name.name in DynamicMemory.unchecked_allocators:
                 if self.parent_name() == "Assignment":
-                    self.dynaMem.initializePointer(node.coord.line, getPointerID(self.nodeStack[-1].lvalue), False)
+                    self.dynaMem.initialize_pointer(node.coord.line, get_pointer_id(self.nodeStack[-1].lvalue), False)
                 elif self.parent_name() == "Decl":
-                    self.dynaMem.initializePointer(node.coord.line, getCType(self.nodeStack[-1]).getName())
+                    self.dynaMem.initialize_pointer(node.coord.line, getCType(self.nodeStack[-1]).get_name())
                 else:
                     self.warnings.add_warning(node.name.coord.line,19)
-            elif node.name.name in DynamicMemory.checkedAllocators:
+            elif node.name.name in DynamicMemory.checked_allocators:
                 if self.parent_name() == "Assignment":
-                    self.dynaMem.initializePointer(node.coord.line, getPointerID(self.nodeStack[-1].lvalue), True)
+                    self.dynaMem.initialize_pointer(node.coord.line, get_pointer_id(self.nodeStack[-1].lvalue), True)
                 elif self.parent_name() == "Decl":
-                    self.dynaMem.initializePointer(node.coord.line, getCType(self.nodeStack[-1]).getName())
+                    self.dynaMem.initialize_pointer(node.coord.line, getCType(self.nodeStack[-1]).get_name())
                 else:
                     self.warnings.add_warning(node.name.coord.line,19)
             elif node.name.name == "free":
@@ -1096,11 +1098,11 @@ class SmatchVisitor(c_ast.NodeVisitor):
         self.generic_visit(node)
         if node.cond != None:
             if class_name(node.cond) == "Assignment"\
-            and class_name(node.cond.rvalue) == "FuncCall" and node.cond.rvalue.name.name in DynamicMemory.uncheckedAllocators:
+            and class_name(node.cond.rvalue) == "FuncCall" and node.cond.rvalue.name.name in DynamicMemory.unchecked_allocators:
                 self.dynaMem.check(node.coord.line, node.cond.lvalue.name)                                           # if(p=malloc(5)){return 42;}
             elif class_name(node.cond) == "UnaryOp" and node.cond.op == "!"\
             and class_name(node.cond.expr) == "Assignment"\
-            and class_name(node.cond.expr.rvalue) == "FuncCall" and node.cond.expr.rvalue.name.name in DynamicMemory.uncheckedAllocators:
+            and class_name(node.cond.expr.rvalue) == "FuncCall" and node.cond.expr.rvalue.name.name in DynamicMemory.unchecked_allocators:
                 self.dynaMem.check(node.coord.line, node.cond.lvalue.name)                                           # if(p=malloc(5)){return 42;}
             elif class_name(node.cond) == "ID":
                 self.dynaMem.check(node.coord.line, node.cond.name)   #if(p) printf("foo")
@@ -1191,7 +1193,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
         # Mark that we encountered a return statement
         self.returnEncountered = True
         if class_name(node.expr) == "ID":
-            if self.dynaMem.pointsAtMemoryBlock(node.expr.name):
+            if self.dynaMem.points_at_memory_block(node.expr.name):
                 # When we return a pointer to dynamically allocated memory from a function, we need
                 # To make sure it won't issue an error as an unchecked/unfreed memory block
                 #self.dynaMem.blank(node.expr.name)
@@ -1220,17 +1222,17 @@ if __name__ == "__main__":
             AllocatorVisitor().visit(ast)
             # TODO: this is really ugly, updating a class variable rather than returning something...
             # This visit method updates the
-            #   checkedAllocators & uncheckedAllocators
+            #   checked_allocators & unchecked_allocators
             #   list class variables within class DynamicMemory
             # This first pass produces no warnings
 
-            #print("Checked: {"+", ".join(DynamicMemory.checkedAllocators)+"}")
-            #print("Unchecked: {"+", ".join(DynamicMemory.uncheckedAllocators)+"}")
+            #print("Checked: {"+", ".join(DynamicMemory.checked_allocators)+"}")
+            #print("Unchecked: {"+", ".join(DynamicMemory.unchecked_allocators)+"}")
             
             # Pass two: Visit
             # This second pass produces warning messages
             s = SmatchVisitor()
             s.visit(ast)
-            s.display_warnings()
+            s.display_all_warnings()
     else:
         print 'Arguments incorrect: should consist of the file_name'
