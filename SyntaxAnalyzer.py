@@ -1203,6 +1203,20 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 self.dynaMem.pointerTarget[pointerID].pointers = set([]).copy()
                 del(self.dynaMem.pointerTarget[pointerID])
 
+def getWarnings(file_name):
+    ast = parse_file(file_name, use_cpp=True,
+                     cpp_path=CPPPATH, 
+                     cpp_args="-Ifake_libc_include")
+    with open(file_name) as my_file:
+        numlines = len(my_file.readlines())
+
+    AllocatorVisitor().visit(ast)
+            
+    # Pass two: Visit
+    # This second pass produces warning messages
+    s = SmatchVisitor()
+    s.visit(ast)
+    return s.get_all_warnings_as_pairs()
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -1210,29 +1224,6 @@ if __name__ == "__main__":
         if not os.path.isfile(file_name):
             print("error: "+file_name+" cannot be read; does it exist?")
         else:
-            ast = parse_file(file_name, use_cpp=True,
-                    cpp_path=CPPPATH, 
-                    #this argument may need to change depending on where your fake_libc_include directory lives
-                    #cpp_args='-I/clue/Tutorials/utils/fake_libc_include')
-                    cpp_args='-Ifake_libc_include')
-            with open(file_name) as my_file:
-                numlines = len(my_file.readlines())
-
-
-            AllocatorVisitor().visit(ast)
-            # TODO: this is really ugly, updating a class variable rather than returning something...
-            # This visit method updates the
-            #   checked_allocators & unchecked_allocators
-            #   list class variables within class DynamicMemory
-            # This first pass produces no warnings
-
-            #print("Checked: {"+", ".join(DynamicMemory.checked_allocators)+"}")
-            #print("Unchecked: {"+", ".join(DynamicMemory.unchecked_allocators)+"}")
-            
-            # Pass two: Visit
-            # This second pass produces warning messages
-            s = SmatchVisitor()
-            s.visit(ast)
-            s.display_all_warnings()
+            print getWarnings(file_name)
     else:
         print 'Arguments incorrect: should consist of the file_name'
