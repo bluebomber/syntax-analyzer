@@ -1,11 +1,11 @@
 "short range" tasks:
-* collect the possible warnings into a list with IDs for easy identification (IN PROGRESS)
-* organize the warning functionality into logical class structure, with appropriate methods
-* give more meaningful names to some of the classes and methods (e.g., there were two getWarnings functions, one a global function, the other a method)
+* DONE: collect the possible warnings into a list with IDs for easy identification
+* DONE: organize the warning functionality into logical class structure, with appropriate methods
+* DONE: give more meaningful names to some of the classes and methods (e.g., there were two getWarnings functions, one a global function, the other a method)
 
 "medium range" tasks:
-* neaten the code, moving more functionality into classes, minimizing reuse
-* rename classes, variables, and functions to make consistent with PEP8 (http://www.python.org/dev/peps/pep-0008/):
+* DONE: neaten the code, moving more functionality into classes, minimizing reuse
+* DONE: rename classes, variables, and functions to make consistent with PEP8 (http://www.python.org/dev/peps/pep-0008/):
 *   ClassName
 *   ExceptionNameError # exceptions are classes, too :-)
 *   method_name
@@ -14,3 +14,4 @@
 
 "long range" tasks:
 * reorganize code so that there is a single visitor class, with preferably only one pass through the code (at worst, two subclasses of the visitor class)
+* reorganize code so that there is a single scope information stack data structure (right now we're tracking two)
