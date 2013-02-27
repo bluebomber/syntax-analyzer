@@ -1202,7 +1202,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 self.memory_tracker.pointer_target[pointer_id].pointers = set([]).copy()
                 del(self.memory_tracker.pointer_target[pointer_id])
 
-def get_warnings(file_name):
+def get_warnings(file_name, display=False):
     ast = parse_file(file_name, use_cpp=True,
                      cpp_path=CPPPATH, 
                      cpp_args="-Ifake_libc_include")
@@ -1215,7 +1215,10 @@ def get_warnings(file_name):
     # This second pass produces warning messages
     s = SmatchVisitor()
     s.visit(ast)
-    s.display_all_warnings()
+    if display:
+        s.display_all_warnings()
+    return s.get_all_warnings()
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -1223,6 +1226,6 @@ if __name__ == "__main__":
         if not os.path.isfile(file_name):
             print("error: "+file_name+" cannot be read; does it exist?")
         else:
-            get_warnings(file_name)
+            get_warnings(file_name, True)
     else:
         print 'Arguments incorrect: should consist of the file_name'
