@@ -2,6 +2,14 @@
 * DONE: collect the possible warnings into a list with IDs for easy identification
 * DONE: organize the warning functionality into logical class structure, with appropriate methods
 * DONE: give more meaningful names to some of the classes and methods (e.g., there were two getWarnings functions, one a global function, the other a method)
+* Handle break-in-middle error demonstrated by test10.c
+* Handle empty block exception thrown by test9.c
+* Handle weird pointer exception thrown by test11.c
+* Handle code problem with test12.c
+* Handle uninitialized pointers shown in test13.c
+* test14.c should not throw the error it does
+* test15.c should generate a shadowed error
+* test16.c should generate mixed declaration error
 
 "medium range" tasks:
 * DONE: neaten the code, moving more functionality into classes, minimizing reuse

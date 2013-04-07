@@ -972,6 +972,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             # Well, we eventually need to iterate through the beast, so here we go...
             # This is the main loop that iterates through the elements in a compound block
             # Should we need an indexing variable?
+            # TODO: This throws an exception of the block is empty, e.g., empty function body. Need to handle this.
             for currentItem in node.block_items:
                 self.visit(currentItem)
                 self.memory_tracker.tick(currentItem.coord.line)
