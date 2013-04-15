@@ -436,6 +436,7 @@ class DynamicMemory():
 
     def initialize(self, pointer_id):
         self.initialized_pointers.add(pointer_id)
+        return self.initialized_pointers
 
     def initialized(self, pointer_id):
         return pointer_id in self.initialized_pointers
@@ -443,6 +444,15 @@ class DynamicMemory():
     # Important note: This is for assigning pointer IDs to block IDs, *not* for
     #   copying pointer to pointer! That must be done via the copy_pointer method.
     def link_pointer_to_block(self, pointer_id, block_id):
+        print "\n\nherp"
+        print "pointer_id:"
+        print pointer_id
+        print (type(pointer_id))
+        print (dir(pointer_id))
+        print "block_id:"
+        print block_id
+        print (type(block_id))
+        print (dir(block_id))
         self.blocks[block_id].add_pointer(pointer_id)
         self.pointer_target[pointer_id] = self.blocks[block_id]
 
@@ -712,7 +722,7 @@ class AllocatorVisitor(c_ast.NodeVisitor):
                 self.memory_tracker.check(node.coord.line, node.cond.name)   #if(p) printf("foo")
             elif class_name(node.cond) == "UnaryOp" and node.cond.op == "!"\
             and class_name(node.cond.expr) == "ID":
-                self.memory_tracker.check(node.coord.line, node.cond.name)   # if(!p) printf("76")
+                self.memory_tracker.check(node.coord.line, node.cond.expr.name)   # if(!p) printf("76")
         self.generic_visit(node)
 
     def visit_Return(self, node):
@@ -963,7 +973,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
         self.node_stack.append(node)
         if node.block_items == []:
             self.warnings.add_warning(node.coord.line,14)
-        else:
+        elif node.block_items is not None:
             # Keep a list of previously encountered declarations for use in identifying
             # mixed pointer/non-pointer declarations in the code
             previousDecls = []
@@ -973,6 +983,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
             # This is the main loop that iterates through the elements in a compound block
             # Should we need an indexing variable?
             # TODO: This throws an exception of the block is empty, e.g., empty function body. Need to handle this.
+            # block_items can be None
             for currentItem in node.block_items:
                 self.visit(currentItem)
                 self.memory_tracker.tick(currentItem.coord.line)
@@ -1109,7 +1120,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 self.memory_tracker.check(node.coord.line, node.cond.name)   #if(p) printf("foo")
             elif class_name(node.cond) == "UnaryOp" and node.cond.op == "!"\
             and class_name(node.cond.expr) == "ID":
-                self.memory_tracker.check(node.coord.line, node.cond.name)                                             # if(!p) printf("76")
+                self.memory_tracker.check(node.coord.line, node.cond.expr.name)                                             # if(!p) printf("76")
 
     def visit_While(self, node):
         """ The individualized traversing code for While nodes.
