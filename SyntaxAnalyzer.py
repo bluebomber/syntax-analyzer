@@ -444,15 +444,6 @@ class DynamicMemory():
     # Important note: This is for assigning pointer IDs to block IDs, *not* for
     #   copying pointer to pointer! That must be done via the copy_pointer method.
     def link_pointer_to_block(self, pointer_id, block_id):
-        print "\n\nherp"
-        print "pointer_id:"
-        print pointer_id
-        print (type(pointer_id))
-        print (dir(pointer_id))
-        print "block_id:"
-        print block_id
-        print (type(block_id))
-        print (dir(block_id))
         self.blocks[block_id].add_pointer(pointer_id)
         self.pointer_target[pointer_id] = self.blocks[block_id]
 
