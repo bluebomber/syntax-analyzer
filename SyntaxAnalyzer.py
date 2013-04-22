@@ -985,13 +985,13 @@ class SmatchVisitor(c_ast.NodeVisitor):
                         if currentItem.coord.line == previousDecl.coord.line and\
                         (self.scope_stack.get_variable_type(currentItem.name).is_pointer() !=
                         self.scope_stack.get_variable_type(previousDecl.name).is_pointer()):
-                            lineNum.append((currentItem.coord.line,self.scope_stack.get_variable_type(currentItem.name).base))
+                            x = self.scope_stack.get_variable_type(currentItem.name)
+                            lineNum.append(currentItem.coord.line)
                     previousDecls.append(currentItem)
 
             # Iterate through the distinct line numbers and report the warnings
-            # We do not currently use j, the base type
-            for (i,j) in set(lineNum):
-                self.warnings.add_warning(i,16)
+            for line in sorted(lineNum):
+                self.warnings.add_warning(line,16)
         #self.memory_tracker.display("Exiting compound node.")
         self.scope_stack.exit_scope()
         self.node_stack.pop()
