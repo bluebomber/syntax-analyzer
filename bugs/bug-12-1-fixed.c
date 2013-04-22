@@ -15,7 +15,7 @@ int main(){
 	p2 = p1;	// both pointers refer to the same memory block
 	
 	free(p1);	// freeing the memory block
-	free(p2);  	// freeing the same memory block again
+	free(p2); // freeing the same memory block again
 
 	return EXIT_SUCCESS;
 }

@@ -366,7 +366,7 @@ class MemoryBlock():
         self.timer -= 1
 
     def add_pointer(self, pointer_id):
-        # FYI: add() is a method defined for sets
+        # FYI: add() is a set method
         self.pointers.add(pointer_id)
 
     def remove_pointer(self, pointer_id):
@@ -443,23 +443,22 @@ class DynamicMemory():
 
     # Important note: This is for assigning pointer IDs to block IDs, *not* for
     #   copying pointer to pointer! That must be done via the copy_pointer method.
-    def link_pointer_to_block(self, pointer_id, block_id):
+    def link_pointer_to_block_id(self, pointer_id, block_id):
         self.blocks[block_id].add_pointer(pointer_id)
         self.pointer_target[pointer_id] = self.blocks[block_id]
 
     def nullify(self, pointer_id):
-        self.link_pointer_to_block(pointer_id, 0)
+        self.link_pointer_to_block_id(pointer_id, 0)
 
     # This is for the c-like statement
     #  void * a, * b;
     #  a = b;
     # That is, this only updates pointer_idA.
     # Underneath the hood, like nullify(), this is an alias for
-    # calls to link_pointer_to_block().
-    def copy_pointer(self, line, pointer_idA, pointer_idB):
-        self.erase_pointer(pointer_idA)
+    # calls to link_pointer_to_block_id().
+    def copy_pointer(self, pointer_idA, pointer_idB):
         if self.points_at_memory_block(pointer_idB):
-            self.link_pointer_to_block(pointer_idA, self.pointer_target[pointer_idB])
+            self.link_pointer_to_block_id(pointer_idA, self.pointer_target[pointer_idB].block_id)
 
     # This function removes a pointer from the structure, erasing the fact it ever existed
     def erase_pointer(self, pointer_id):
@@ -468,10 +467,10 @@ class DynamicMemory():
             del self.pointer_target[pointer_id]
 
     # This is simply for allocation and assignment in a single call
-    # Logically equivalent to link_pointer_to_block(pointer_id, allocate())
+    # Logically equivalent to link_pointer_to_block_id(pointer_id, allocate())
     def initialize_pointer(self, line, pointer_id, checked=False):
         self.allocate(line)
-        self.link_pointer_to_block(pointer_id,self.next_block_id-1)
+        self.link_pointer_to_block_id(pointer_id,self.next_block_id-1)
         if checked:
             self.check(line, block_id = self.next_block_id-1)
 
@@ -524,7 +523,7 @@ class DynamicMemory():
         for block in self.blocks:
             #print("block #:"+str(block.block_id)+", pointers: "+str(block.pointers))
             pointerlist = "{" + ", ".join(list(block.pointers)) + "}"
-            msg = str(block.block_id)+"\t\t"
+            msg = str(block.block_id)+("" if block.block_id != 0 else "(NULL)")+"\t\t"
             msg += str(block.line_allocated)+"\t\t"
             msg += str(block.line_checked)+"\t\t"
             msg += str(block.line_freed)+"\t\t"
@@ -605,7 +604,7 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         if node.op == '=':
             if class_name(node.lvalue) == 'ID' and self.memory_tracker.points_at_memory_block(node.lvalue.name)\
             and class_name(node.rvalue) == 'ID' and  self.memory_tracker.points_at_memory_block(node.rvalue.name):
-                self.memory_tracker.copy_pointer(node.coord.line, node.lvalue.name, node.rvalue.name)
+                self.memory_tracker.copy_pointer(node.lvalue.name, node.rvalue.name)
         else:
             print("Error processing this assignment node... What other kind of operator can an assignment have besides '='?!")
         self.generic_visit(node)
@@ -685,7 +684,7 @@ class AllocatorVisitor(c_ast.NodeVisitor):
                 if self.parent_name() == "Assignment":
                     self.memory_tracker.initialize_pointer(node.coord.line, get_pointer_id(self.node_stack[-1].lvalue), False)
                 elif self.parent_name() == "Decl":
-                    self.memory_tracker.initialize_pointer(node.coord.line, self.node_stack[-1].name)
+                    self.memory_tracker.initialize(node.coord.line, self.node_stack[-1].name)
             elif node.name.name in DynamicMemory.checked_allocators:
                 if self.parent_name() == "Assignment":
                     self.memory_tracker.initialize_pointer(node.coord.line, get_pointer_id(self.node_stack[-1].lvalue), True)
@@ -825,7 +824,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
                     # warn about memory leak
                     if len(self.memory_tracker.pointer_target[node.lvalue.name].pointers) == 1:
                         self.warnings.add_warning(node.coord.line, 1)
-                    self.memory_tracker.copy_pointer(node.coord.line, node.lvalue.name, node.rvalue.name)
+                    self.memory_tracker.copy_pointer(node.lvalue.name, node.rvalue.name)
         if self.in_conditional(node) and class_name(node.rvalue) != "FuncCall":
             self.warnings.add_warning(node.coord.line,2)
         if class_name(node.lvalue) == 'ID':
@@ -951,6 +950,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
                             self.memory_tracker.nullify(node.name)
             else:
                 self.scope_stack.get_variable_type(node.name).make_parameter()
+                print "lunc"
         self.generic_visit(node)
 
     def visit_Compound(self,node):
@@ -1050,7 +1050,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 if self.parent_name() == "Assignment":
                     self.memory_tracker.initialize_pointer(node.coord.line, get_pointer_id(self.node_stack[-1].lvalue), False)
                 elif self.parent_name() == "Decl":
-                    self.memory_tracker.initialize_pointer(node.coord.line, get_c_type(self.node_stack[-1]).get_name())
+                    self.memory_tracker.initialize(node.coord.line, get_c_type(self.node_stack[-1]).get_name())
                 else:
                     self.warnings.add_warning(node.name.coord.line,19)
             elif node.name.name in DynamicMemory.checked_allocators:
