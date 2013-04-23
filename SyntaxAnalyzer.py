@@ -1157,26 +1157,25 @@ class SmatchVisitor(c_ast.NodeVisitor):
         elif class_name(node.stmt) != "Compound":
             self.warnings.add_warning(node.coord.line,29)
             return
-        else:
+        #else:
             # At this point, node.stmt is a Compound node
-            stmtCount = len(node.stmt.block_items)
-            caseIndices = []
-            for i in range(stmtCount):
-                if class_name(node.stmt.block_items[i]) in ['Case','Default']:
-                    caseIndices.append(i)
-            caseCount = len(caseIndices)
-            for k in range(caseCount):
-                stopIndex = stmtCount if k == caseCount-1 else caseIndices[k+1]
-                breakFound = False
-                for j in range(caseIndices[k]+1,stopIndex):
-                    if class_name(node.stmt.block_items[j]) == 'Break':
-                        breakFound = True
-                        if j != stopIndex-1:
-                            self.warnings.add_warning(node.stmt.block_items[j].coord.line,30)
-                if k < caseCount-1 and caseIndices[k+1] != caseIndices[k] + 1 and  not breakFound:
-                    print k, 
-                    self.warnings.add_warning(node.stmt.stmts[stopIndex-1].coord.line,31)
-
+            #stmtCount = len(node.stmt.block_items)
+            #caseIndices = []
+            #for i in range(stmtCount):
+                #if class_name(node.stmt.block_items[i]) in ['Case','Default']:
+                    #caseIndices.append(i)
+            #caseCount = len(caseIndices)
+            #for k in range(caseCount):
+                #stopIndex = stmtCount if k == caseCount-1 else caseIndices[k+1]
+                #breakFound = False
+                #for j in range(caseIndices[k]+1,stopIndex):
+                    #if class_name(node.stmt.block_items[j]) == 'Break':
+                        #breakFound = True
+                        #if j != stopIndex-1:
+                            #self.warnings.add_warning(node.stmt.block_items[j].coord.line,30)
+                #if k < caseCount-1 and caseIndices[k+1] != caseIndices[k] + 1 and not breakFound:
+                    ##print k, 
+                    #self.warnings.add_warning(node.stmt.stmts[stopIndex-1].coord.line,31)
         self.generic_visit(node)
         
     def visit_Case(self, node):
@@ -1184,9 +1183,15 @@ class SmatchVisitor(c_ast.NodeVisitor):
             Most of the checks for interesting runtime errors occur in
             the visit_Switch method
         """
-        if node is None:
-            print 'None passed as node in visit_Case'
-            return
+        # node.expr is the case's guard
+        # node.stmts is the case's sequence of statements
+        children_stmts = node.stmts
+        if children_stmts != []:
+            if class_name(children_stmts[-1]) != "Break":
+                self.warnings.add_warning(children_stmts[-1].coord.line,31)
+            for index in range(len(children_stmts)-1):
+                if class_name(children_stmts[index]) == "Break":
+                    self.warnings.add_warning(children_stmts[index].coord.line,30)
         self.generic_visit(node)
 
     def visit_Return(self, node):
