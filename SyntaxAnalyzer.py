@@ -209,7 +209,7 @@ class CWarning():
                     (15,"block allocated on line %s not tested for successful allocation within %s statements"), #note that this error requires two extra string arguments
                     (16,"mixed pointer and non-pointer declaration"),
                     (17,"potential memory leak: memory block allocated at line %s has not been freed"),
-                    (18,"function with non-VOID return type missing a return statement"),
+                    (18,"function with non-VOID return type missing a return statement (tip: EXIT is an acceptable replacement in main)"),
                     (19,"return value of dynamic memory allocation not stored"),
                     (20,"free() called on pointer with previously freed target. target previously freed at line %s"),
                     (21,"call to free results in dangling pointers %s"),
@@ -1013,22 +1013,25 @@ class SmatchVisitor(c_ast.NodeVisitor):
     def visit_FuncDef(self, node):
         """ Defines a new scope
         """
-        if node is None:
-            print 'None passed as node in visit_FuncDef'
-            return
         self.scope_stack.enter_scope(node)
         oldfunction = self.current_function
         self.current_function = node.decl.name
         self.returnEncountered = False
+        # this is where all the child nodes get visited:
         self.generic_visit(node)
         #self.memory_tracker.warnunfreed_blocks(node.coord.line)
         #This is where we should warn about unfreed blocks
         for block in self.memory_tracker.unfreed_blocks():
             self.warnings.add_warning(block.line_allocated, 17, (block.line_allocated,))
-        if not self.returnEncountered and not (class_name(node.decl.type.type) == 'TypeDecl'
-                                        and class_name(node.decl.type.type.type) == 'IdentifierType'
-                                        and node.decl.type.type.type.names[0] == 'void'):
-            self.warnings.add_warning(node.coord.line,18)
+        if not self.returnEncountered:
+            if node.decl.name == "main":
+                if class_name(node.body) == "Compound" and class_name(node.body.children()[-1][1].name) == "ID"\
+                   and node.body.children()[-1][1].name.name != "exit":
+                    self.warnings.add_warning(node.coord.line,18)
+            elif not (class_name(node.decl.type.type) == 'TypeDecl'
+                                      and class_name(node.decl.type.type.type) == 'IdentifierType'
+                                      and node.decl.type.type.type.names[0] == 'void'):
+                self.warnings.add_warning(node.coord.line,18)
         self.memory_tracker.purge()
         self.current_function = oldfunction
         self.scope_stack.exit_scope()
