@@ -444,6 +444,8 @@ class DynamicMemory():
     # Important note: This is for assigning pointer IDs to block IDs, *not* for
     #   copying pointer to pointer! That must be done via the copy_pointer method.
     def link_pointer_to_block_id(self, pointer_id, block_id):
+        if pointer_id in self.pointer_target:
+            self.pointer_target[pointer_id].pointers.remove(pointer_id)
         self.blocks[block_id].add_pointer(pointer_id)
         self.pointer_target[pointer_id] = self.blocks[block_id]
 
@@ -588,7 +590,6 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         """ Called if no explicit visitor function exists for a 
             node. Implements preorder visiting of the node.
         """
-        #print"visiting "+class_name(node)
         if node is not None:
             self.node_stack.append(node)
             if 'children' in dir(node):
@@ -597,9 +598,6 @@ class AllocatorVisitor(c_ast.NodeVisitor):
             self.node_stack.pop()
 
     def visit_Assignment(self,node):
-        if node is None:
-            print 'None passed as node in visit_Assignment'
-            return
 
         if node.op == '=':
             if class_name(node.lvalue) == 'ID' and self.memory_tracker.points_at_memory_block(node.lvalue.name)\
@@ -647,9 +645,6 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Compound(self,node):
-        if node is None:
-            print 'None passed as node in visit_Compound'
-            return
         self.scope_stack.enter_scope(node)
         self.node_stack.append(node)
         self.generic_visit(node)
@@ -659,9 +654,6 @@ class AllocatorVisitor(c_ast.NodeVisitor):
     def visit_FileAST(self, node): #Vital assumption: This node is only visited once during any execution
         """ Defines a new (highest) scope.      
         """
-        if node is None:
-            print 'None passed as node in visit_FileAST'
-            return
         # it will traverse as normal, but skipping the main function at first
         self.scope_stack.enter_scope(node)
         self.node_stack.append(node)
@@ -696,9 +688,6 @@ class AllocatorVisitor(c_ast.NodeVisitor):
         """ The individualized traversing code for If nodes.
             We can check for empty code blocks and such.
         """
-        if node is None:
-            print 'None passed as node in visit_If'
-            return
 
         if node.cond is not None:
             if class_name(node.cond) == "Assignment"\
@@ -800,13 +789,11 @@ class SmatchVisitor(c_ast.NodeVisitor):
         """ Called if no explicit visitor function exists for a 
             node. Implements preorder visiting of the node.
         """
-        #print"visiting "+class_name(node)
-        if node is not None:
-            self.node_stack.append(node)
-            # the children method now returns an iterable of (childname, childnode) pairs
-            for (childname, child) in node.children():
-                self.visit(child)
-            self.node_stack.pop()
+        self.node_stack.append(node)
+        # the children method now returns an iterable of (childname, childnode) pairs
+        for (childname, child) in node.children():
+            self.visit(child)
+        self.node_stack.pop()
 
     def visit_Assignment(self,node):
         """ This is what a visitor node executes when it reaches
@@ -815,6 +802,7 @@ class SmatchVisitor(c_ast.NodeVisitor):
         if class_name(node.rvalue) == 'ID':
             if self.scope_stack.get_variable_type(node.rvalue.name).is_pointer():
                 if not self.memory_tracker.initialized(node.rvalue.name):
+                    # assigning to uninitialized pointer
                     self.warnings.add_warning(node.coord.line, 0)
                 else:
                     # If the lvalue is also a pointer_id, it is now initialized
@@ -838,9 +826,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
             might possibly occur here, because there are so many
             binary operations.        
         """
-        if node is None:
-            print 'None passed as node in visit_BinaryOp'
-            return
         #self.node_stack.append(node)
         self.generic_visit(node)
         #self.visit(node.right)
@@ -891,9 +876,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
             the AST representing a unary operation.  These
             include increments, decrements, and sizeof.        
         """
-        if node is None:
-            print 'None passed as node in visit_UnaryOp'
-            return
         if node.op == 'sizeof':
             t = node.expr
             while class_name(t) not in ['ID', 'Typename']:
@@ -917,10 +899,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ArrayRef(self,node):
-        if node is None:
-            print 'None passed as node in visit_ArrarRef'
-            return
-
         s = node.name.name
         if s in self.memory_tracker.pointer_target and not self.memory_tracker.pointer_target[s].checked():
             self.warnings.add_warning(node.coord.line,12)
@@ -932,9 +910,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
             important to process at this step, because the AST tree does
             not naturally associate IDs to variable types.
         """
-        if node is None:
-            print 'None passed as node in visit_Decl'
-            return
         if class_name(node.type) in ["FuncDecl"]:
             self.scope_stack.declare(node.name,get_c_type(node.type))
             if self.parent_name() != "FuncDef":     #Function forward declaration
@@ -999,9 +974,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
     def visit_FileAST(self, node): #Vital assumption: This node is only visited once during any execution
         """ Defines a new (highest) scope.      
         """
-        if node is None:
-            print 'None passed as node in visit_FileAST'
-            return
         # it will traverse as normal, but skipping the main function at first
         self.scope_stack.enter_scope(node)
         self.node_stack.append(node)
@@ -1044,9 +1016,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
     def visit_FuncCall(self,node):
         """ ...
         """
-        if node is None:
-            print 'None passed as node in visit_FuncCall'
-            return
 
         if class_name(node.name) == "ID":
             if node.name.name in DynamicMemory.unchecked_allocators:
@@ -1068,17 +1037,19 @@ class SmatchVisitor(c_ast.NodeVisitor):
                 # pointer points to something
                 if pointer_id in self.memory_tracker.pointer_target:
                     if self.memory_tracker.pointer_target[pointer_id].freed():
+                        # double freeing
                         self.warnings.add_warning(node.coord.line,20,(self.memory_tracker.pointer_target[pointer_id].line_freed,))
                     else:
                         self.memory_tracker.pointer_target[pointer_id].free(node.coord.line)
                         # Check to see if other pointers exist...
-                        #msg = 'Call to free results in dangling pointers %s' %(retvals[1])
-                        if self.memory_tracker.pointer_target[pointer_id].pointers != empty_set:
-                            #msg = 'Call to free results in dangling pointers %s' %(pointer_id)
+
+                        #print self.memory_tracker.pointer_target[pointer_id].pointers,  set([pointer_id])
+                        if self.memory_tracker.pointer_target[pointer_id].pointers != set([pointer_id]):
+                            # we need to make sure that if a pointer is subsequently set to NULL that this error isn't thrown
+                            self.memory_tracker.display("herp")
                             self.warnings.add_warning(node.coord.line,21,(pointer_id,))
                 # pointer_id does not point to a block
                 else:
-                    #msg = 'Free called on unallocated pointer \'%s\''%pointer_id
                     self.warnings.add_warning(node.coord.line,22,(pointer_id,))
             else:
                 pass
@@ -1088,9 +1059,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
         """ The individualized traversing code for If nodes.
             We can check for empty code blocks and such.
         """
-        if node is None:
-            print 'None passed as node in visit_If'
-            return
 
         if node.iftrue is None:
             self.warnings.add_warning(node.coord.line,23)
@@ -1121,9 +1089,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
             We can check for empty code blocks, off-by-one errors,
             and such.
         """
-        if node is None:
-            print 'None passed as node in visit_While'
-            return
 
         #Loops have the possibility of having a single node for node.stmt,
         # e.g. while (true) i++;
@@ -1136,9 +1101,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
             We can check for empty code blocks, off-by-one errors,
             and such.
         """
-        if node is None:
-            print 'None passed as node in visit_For'
-            return
         if class_name(node.stmt) == 'EmptyStatement':
             self.warnings.add_warning(node.coord.line,26)
         if node.init is not None and node.cond is not None and class_name(node.init) == "Assignment" and class_name(node.cond) == "BinaryOp":
@@ -1152,9 +1114,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
         """ The custom traversing code for a Switch node.
             We can check for missing or inappropriate breaks or conditions.
         """
-        if node is None:
-            print 'None passed as node in visit_Switch'
-            return
         if node.stmt is None or node.stmt.block_items is None:
             self.warnings.add_warning(node.coord.line,28)
         elif class_name(node.stmt) != "Compound":
