@@ -925,7 +925,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
                             self.memory_tracker.nullify(node.name)
             else:
                 self.scope_stack.get_variable_type(node.name).make_parameter()
-                print "lunc"
         self.generic_visit(node)
 
     def visit_Compound(self,node):
@@ -1046,7 +1045,6 @@ class SmatchVisitor(c_ast.NodeVisitor):
                         #print self.memory_tracker.pointer_target[pointer_id].pointers,  set([pointer_id])
                         if self.memory_tracker.pointer_target[pointer_id].pointers != set([pointer_id]):
                             # we need to make sure that if a pointer is subsequently set to NULL that this error isn't thrown
-                            self.memory_tracker.display("herp")
                             self.warnings.add_warning(node.coord.line,21,(pointer_id,))
                 # pointer_id does not point to a block
                 else:
